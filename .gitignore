@@ -1,0 +1,14 @@
+.DS_Store
+*.xcodeproj
+Config/
+build/
+Payload/
+*.ipa
+build.log
+
+# Never commit the game itself
+www/
+*.zip
+*.exe
+*.dll
+*.pak
