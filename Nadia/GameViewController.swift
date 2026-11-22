@@ -102,18 +102,30 @@ final class GameViewController: UIViewController, WKUIDelegate, WKNavigationDele
     /// Accepts Nadia/www/index.html, Nadia/www/www/index.html or Nadia/index.html.
     private func findGameRoot() -> URL? {
         let fm = FileManager.default
-        let candidates = [
-            documentsURL.appendingPathComponent("www"),
-            documentsURL.appendingPathComponent("www").appendingPathComponent("www"),
-            documentsURL
-        ]
-        return candidates.first { fm.fileExists(atPath: $0.appendingPathComponent("index.html").path) }
+        var queue: [(URL, Int)] = [(documentsURL, 0)]
+        while !queue.isEmpty {
+            let (dir, depth) = queue.removeFirst()
+            if fm.fileExists(atPath: dir.appendingPathComponent("index.html").path) { return dir }
+            guard depth < 4,
+                  let items = try? fm.contentsOfDirectory(at: dir,
+                                                          includingPropertiesForKeys: [.isDirectoryKey],
+                                                          options: [.skipsHiddenFiles]) else { continue }
+            for item in items where (try? item.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                queue.append((item, depth + 1))
+            }
+        }
+        return nil
+    }
+
+    private func describeFolder(_ url: URL) -> String {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: url.path)) ?? []
+        return names.isEmpty ? "(empty)" : names.sorted().prefix(15).joined(separator: ", ")
     }
 
     private func tryLaunch() {
         guard server == nil else { return }
         guard let root = findGameRoot() else {
-            show("Game files not found.\n\nOpen the Files app > On My iPhone > Nadia, and copy the game's \"www\" folder in there (so you have Nadia/www/index.html). Then come back to this app.")
+            show("Game files not found.\n\nOpen the Files app > On My iPhone > Nadia, and copy the game's \"www\" folder in there (so you have Nadia/www/index.html). Then come back to this app.\n\nThe app currently sees: \(describeFolder(documentsURL))\nInside www: \(describeFolder(documentsURL.appendingPathComponent("www")))")
             return
         }
         let s = LocalServer(root: root)
